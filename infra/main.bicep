@@ -328,6 +328,20 @@ module keyvault './core/security/keyvault.bicep' = if (useKeyVault || authType =
   }
 }
 
+// using the module chat-with-your-data-solution-accelerator/infra/core/private-endpoint/private-endpoint.bicep, add a private link to this key vault
+module keyvaultPrivateEndpoint './core/private-endpoint/private-endpoint.bicep' = if (useKeyVault || authType == 'rbac') {
+  name: 'keyvault-private-endpoint'
+  scope: rg
+  params: {
+    location: location
+    name: keyVaultName
+    resourceId: keyvault.outputs.id
+    resourceEndpointType: 'keyvault'
+    subnetId: ''
+    privateDnsZoneName: 'privatelink.vaultcore.azure.net'
+  }
+}
+
 var defaultOpenAiDeployments = [
   {
     name: azureOpenAIModel
@@ -390,6 +404,20 @@ module openai 'core/ai/cognitiveservices.bicep' = {
   }
 }
 
+module openaiPrivateEndpoint './core/private-endpoint/private-endpoint.bicep' =  {
+  name: 'openai-private-endpoint'
+  scope: rg
+  params: {
+    location: location
+    name: azureOpenAIResourceName
+    resourceId: openai.outputs.id
+    resourceEndpointType: 'openai'
+    subnetId: ''
+
+    privateDnsZoneName: 'privatelink.openai.azure.net'
+  }
+}
+
 module computerVision 'core/ai/cognitiveservices.bicep' = if (useAdvancedImageProcessing) {
   name: 'computerVision'
   scope: rg
@@ -404,6 +432,19 @@ module computerVision 'core/ai/cognitiveservices.bicep' = if (useAdvancedImagePr
   }
 }
 
+module computerVisionPrivateEndpoint './core/private-endpoint/private-endpoint.bicep' = if (useAdvancedImageProcessing) {
+  name: 'computerVision-private-endpoint'
+  scope: rg
+  params: {
+    location: location
+    name: computerVisionName
+    resourceId: computerVision.outputs.id
+    resourceEndpointType: 'cognitiveservices'
+    subnetId: ''
+    privateDnsZoneName: 'privatelink.cognitiveservices.azure.net'
+  }
+}
+
 // Search Index Data Reader
 module searchIndexRoleOpenai 'core/security/role.bicep' = if (authType == 'rbac') {
   scope: rg
@@ -414,6 +455,7 @@ module searchIndexRoleOpenai 'core/security/role.bicep' = if (authType == 'rbac'
     principalType: 'ServicePrincipal'
   }
 }
+
 
 // Search Service Contributor
 module searchServiceRoleOpenai 'core/security/role.bicep' = if (authType == 'rbac') {
@@ -461,6 +503,20 @@ module speechService 'core/ai/cognitiveservices.bicep' = {
   }
 }
 
+module speechServicePrivateEndpoint './core/private-endpoint/private-endpoint.bicep' = {
+  name: 'speechService-private-endpoint'
+  scope: rg
+  params: {
+    location: location
+    name: speechServiceName
+    resourceId: speechService.outputs.id
+    resourceEndpointType: 'cognitiveservices'
+    subnetId: ''
+
+    privateDnsZoneName: 'privatelink.cognitiveservices.azure.net'
+  }
+}
+
 module storekeys './app/storekeys.bicep' = if (useKeyVault) {
   name: 'storekeys'
   scope: rg
@@ -495,6 +551,20 @@ module search './core/search/search-services.bicep' = {
       }
     }
     semanticSearch: azureSearchUseSemanticSearch ? 'free' : null
+  }
+}
+
+module searchPrivateEndpoint './core/private-endpoint/private-endpoint.bicep' = {
+  name: 'searchService-private-endpoint'
+  scope: rg
+  params: {
+    location: location
+    name: azureAISearchName
+    resourceId: search.outputs.id
+    resourceEndpointType: 'search'
+    subnetId: ''
+
+    privateDnsZoneName: 'privatelink.search.windows.net'
   }
 }
 
