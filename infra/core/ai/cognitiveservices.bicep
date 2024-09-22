@@ -9,16 +9,16 @@ param kind string = 'OpenAI'
 param managedIdentity bool = false
 
 @allowed([ 'Enabled', 'Disabled' ])
-param publicNetworkAccess string = 'Enabled'
+param publicNetworkAccess string = 'Disabled'
 param sku object = {
   name: 'S0'
 }
 
 param allowedIpRules array = []
-param networkAcls object = empty(allowedIpRules) 
+param networkAcls object = empty(allowedIpRules)
  ? {
   defaultAction: 'Allow'
-} 
+}
  : {
   ipRules: allowedIpRules
   defaultAction: 'Deny'
@@ -49,8 +49,8 @@ for deployment in deployments: {
     model: deployment.model
     raiPolicyName: contains(deployment, 'raiPolicyName') ? deployment.raiPolicyName : null
   }
-  sku: contains(deployment, 'sku') 
-   ? deployment.sku 
+  sku: contains(deployment, 'sku')
+   ? deployment.sku
    : {
     name: 'Standard'
     capacity: 20

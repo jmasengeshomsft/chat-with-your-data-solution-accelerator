@@ -301,6 +301,18 @@ param recognizedLanguages string = 'en-US,fr-FR,de-DE,it-IT'
 @description('Azure Machine Learning Name')
 param azureMachineLearningName string = 'aml-${resourceToken}'
 
+//Networking
+@description('The resource group where the vnet is')
+param vnetResourceGroup string
+@description('The name of the vnt')
+param vnetName string
+@description('The name of the subnet for all PE')
+param privateEndpointSubsnet string
+@description('The name of the subnet for the vnet integration subnet')
+param vnetIntegrationSubnet string
+@description('The resource group where an existing dns zone is')
+param dnsZoneResourceGroup string
+
 var blobContainerName = 'documents'
 var queueName = 'doc-processing'
 var clientKey = '${uniqueString(guid(subscription().id, deployment().name))}${newGuidString}'
@@ -314,6 +326,18 @@ resource rg 'Microsoft.Resources/resourceGroups@2021-04-01' = {
   name: rgName
   location: location
   tags: tags
+}
+
+//private link subnet
+resource peSubsnet 'Microsoft.Network/virtualNetworks/subnets@2020-06-01' existing = {
+  scope: resourceGroup(vnetResourceGroup)
+  name: '${vnetName}/${privateEndpointSubsnet}'
+}
+
+//private link subnet
+resource vnetIntSubsnet 'Microsoft.Network/virtualNetworks/subnets@2020-06-01' existing = {
+  scope: resourceGroup(vnetResourceGroup)
+  name: '${vnetName}/${vnetIntegrationSubnet}'
 }
 
 // Store secrets in a keyvault
@@ -331,13 +355,14 @@ module keyvault './core/security/keyvault.bicep' = if (useKeyVault || authType =
 // using the module chat-with-your-data-solution-accelerator/infra/core/private-endpoint/private-endpoint.bicep, add a private link to this key vault
 module keyvaultPrivateEndpoint './core/private-endpoint/private-endpoint.bicep' = if (useKeyVault || authType == 'rbac') {
   name: 'keyvault-private-endpoint'
-  scope: rg
+  scope: resourceGroup(vnetResourceGroup)
   params: {
     location: location
     name: keyVaultName
     resourceId: keyvault.outputs.id
-    resourceEndpointType: 'keyvault'
-    subnetId: ''
+    resourceEndpointType: 'vault'
+    subnetId: peSubsnet.id
+    dnsZoneResourceGroup: dnsZoneResourceGroup
     privateDnsZoneName: 'privatelink.vaultcore.azure.net'
   }
 }
@@ -406,15 +431,15 @@ module openai 'core/ai/cognitiveservices.bicep' = {
 
 module openaiPrivateEndpoint './core/private-endpoint/private-endpoint.bicep' =  {
   name: 'openai-private-endpoint'
-  scope: rg
+  scope: resourceGroup(vnetResourceGroup)
   params: {
     location: location
     name: azureOpenAIResourceName
     resourceId: openai.outputs.id
-    resourceEndpointType: 'openai'
-    subnetId: ''
-
-    privateDnsZoneName: 'privatelink.openai.azure.net'
+    resourceEndpointType: 'account'
+    subnetId: peSubsnet.id
+    dnsZoneResourceGroup: dnsZoneResourceGroup
+    privateDnsZoneName: 'privatelink.openai.azure.com'
   }
 }
 
@@ -432,18 +457,19 @@ module computerVision 'core/ai/cognitiveservices.bicep' = if (useAdvancedImagePr
   }
 }
 
-module computerVisionPrivateEndpoint './core/private-endpoint/private-endpoint.bicep' = if (useAdvancedImageProcessing) {
-  name: 'computerVision-private-endpoint'
-  scope: rg
-  params: {
-    location: location
-    name: computerVisionName
-    resourceId: computerVision.outputs.id
-    resourceEndpointType: 'cognitiveservices'
-    subnetId: ''
-    privateDnsZoneName: 'privatelink.cognitiveservices.azure.net'
-  }
-}
+// module computerVisionPrivateEndpoint './core/private-endpoint/private-endpoint.bicep' = if (useAdvancedImageProcessing) {
+//   name: 'computerVision-private-endpoint'
+//   scope: resourceGroup(vnetResourceGroup)
+//   params: {
+//     location: location
+//     name: computerVisionName
+//     resourceId: computerVision.outputs.id
+//     resourceEndpointType: 'account'
+//     subnetId: peSubsnet.id
+//     dnsZoneResourceGroup: dnsZoneResourceGroup
+//     privateDnsZoneName: 'privatelink.cognitiveservices.azure.com'
+//   }
+// }
 
 // Search Index Data Reader
 module searchIndexRoleOpenai 'core/security/role.bicep' = if (authType == 'rbac') {
@@ -505,15 +531,15 @@ module speechService 'core/ai/cognitiveservices.bicep' = {
 
 module speechServicePrivateEndpoint './core/private-endpoint/private-endpoint.bicep' = {
   name: 'speechService-private-endpoint'
-  scope: rg
+  scope: resourceGroup(vnetResourceGroup)
   params: {
     location: location
     name: speechServiceName
     resourceId: speechService.outputs.id
-    resourceEndpointType: 'cognitiveservices'
-    subnetId: ''
-
-    privateDnsZoneName: 'privatelink.cognitiveservices.azure.net'
+    resourceEndpointType: 'account'
+    subnetId: peSubsnet.id
+    dnsZoneResourceGroup: dnsZoneResourceGroup
+    privateDnsZoneName: 'privatelink.cognitiveservices.azure.com'
   }
 }
 
@@ -556,14 +582,14 @@ module search './core/search/search-services.bicep' = {
 
 module searchPrivateEndpoint './core/private-endpoint/private-endpoint.bicep' = {
   name: 'searchService-private-endpoint'
-  scope: rg
+  scope: resourceGroup(vnetResourceGroup)
   params: {
     location: location
     name: azureAISearchName
     resourceId: search.outputs.id
-    resourceEndpointType: 'search'
-    subnetId: ''
-
+    resourceEndpointType: 'searchService'
+    subnetId: peSubsnet.id
+    dnsZoneResourceGroup: dnsZoneResourceGroup
     privateDnsZoneName: 'privatelink.search.windows.net'
   }
 }
@@ -593,6 +619,7 @@ module web './app/web.bicep' = if (hostingModel == 'code') {
     runtimeName: 'python'
     runtimeVersion: '3.11'
     appServicePlanId: hostingplan.outputs.name
+    vnetIntegrationSubnetId: vnetIntSubsnet.id
     applicationInsightsName: monitoring.outputs.applicationInsightsName
     healthCheckPath: '/api/health'
     azureOpenAIName: openai.outputs.name
@@ -675,6 +702,7 @@ module web_docker './app/web.bicep' = if (hostingModel == 'container') {
     tags: union(tags, { 'azd-service-name': 'web-docker' })
     dockerFullImageName: 'fruoccopublic.azurecr.io/rag-webapp'
     appServicePlanId: hostingplan.outputs.name
+    vnetIntegrationSubnetId: vnetIntSubsnet.id
     applicationInsightsName: monitoring.outputs.applicationInsightsName
     healthCheckPath: '/api/health'
     azureOpenAIName: openai.outputs.name
@@ -748,6 +776,20 @@ module web_docker './app/web.bicep' = if (hostingModel == 'container') {
   }
 }
 
+module webPrivateEndpoint 'core/private-endpoint/private-endpoint.bicep' = {
+  name: 'web-private-endpoint'
+  scope: resourceGroup(vnetResourceGroup)
+  params: {
+    name: hostingModel == 'code'? web.outputs.FRONTEND_API_NAME : web_docker.outputs.FRONTEND_API_NAME
+    location: location
+    resourceId: hostingModel == 'code'? web.outputs.FRONTEND_API_ID : web_docker.outputs.FRONTEND_API_ID
+    subnetId: peSubsnet.id
+    resourceEndpointType: 'sites'
+    privateDnsZoneName: 'privatelink.azurewebsites.net'
+    dnsZoneResourceGroup: dnsZoneResourceGroup
+  }
+}
+
 module adminweb './app/adminweb.bicep' = if (hostingModel == 'code') {
   name: adminWebsiteName
   scope: rg
@@ -758,6 +800,7 @@ module adminweb './app/adminweb.bicep' = if (hostingModel == 'code') {
     runtimeName: 'python'
     runtimeVersion: '3.11'
     appServicePlanId: hostingplan.outputs.name
+    vnetIntegrationSubnetId: vnetIntSubsnet.id
     applicationInsightsName: monitoring.outputs.applicationInsightsName
     azureOpenAIName: openai.outputs.name
     azureAISearchName: search.outputs.name
@@ -838,6 +881,7 @@ module adminweb_docker './app/adminweb.bicep' = if (hostingModel == 'container')
     tags: union(tags, { 'azd-service-name': 'adminweb-docker' })
     dockerFullImageName: 'fruoccopublic.azurecr.io/rag-adminwebapp'
     appServicePlanId: hostingplan.outputs.name
+    vnetIntegrationSubnetId: vnetIntSubsnet.id
     applicationInsightsName: monitoring.outputs.applicationInsightsName
     azureOpenAIName: openai.outputs.name
     azureAISearchName: search.outputs.name
@@ -909,6 +953,21 @@ module adminweb_docker './app/adminweb.bicep' = if (hostingModel == 'container')
   }
 }
 
+module webAdminPrivateEndpoint 'core/private-endpoint/private-endpoint.bicep' = {
+  name: 'webAdmin-private-endpoint'
+  scope: resourceGroup(vnetResourceGroup)
+  params: {
+    name: hostingModel == 'code'? adminweb.outputs.WEBSITE_ADMIN_NAME : adminweb_docker.outputs.WEBSITE_ADMIN_NAME
+    location: location
+    resourceId: hostingModel == 'code'? adminweb.outputs.WEBSITE_ADMIN_ID : adminweb_docker.outputs.WEBSITE_ADMIN_ID
+    subnetId: peSubsnet.id
+    resourceEndpointType: 'sites'
+    privateDnsZoneName: 'privatelink.azurewebsites.net'
+    dnsZoneResourceGroup: dnsZoneResourceGroup
+  }
+}
+
+
 module monitoring './core/monitor/monitoring.bicep' = {
   name: 'monitoring'
   scope: rg
@@ -953,6 +1012,7 @@ module function './app/function.bicep' = if (hostingModel == 'code') {
     runtimeName: 'python'
     runtimeVersion: '3.11'
     appServicePlanId: hostingplan.outputs.name
+    vnetIntegrationSubnetId: vnetIntSubsnet.id
     applicationInsightsName: monitoring.outputs.applicationInsightsName
     azureOpenAIName: openai.outputs.name
     azureAISearchName: search.outputs.name
@@ -1020,6 +1080,7 @@ module function_docker './app/function.bicep' = if (hostingModel == 'container')
     tags: union(tags, { 'azd-service-name': 'function-docker' })
     dockerFullImageName: 'fruoccopublic.azurecr.io/rag-backend'
     appServicePlanId: hostingplan.outputs.name
+    vnetIntegrationSubnetId: vnetIntSubsnet.id
     applicationInsightsName: monitoring.outputs.applicationInsightsName
     azureOpenAIName: openai.outputs.name
     azureAISearchName: search.outputs.name
@@ -1078,6 +1139,20 @@ module function_docker './app/function.bicep' = if (hostingModel == 'container')
   }
 }
 
+module functionPrivateEndpoint 'core/private-endpoint/private-endpoint.bicep' = {
+  name: 'function-private-endpoint'
+  scope: resourceGroup(vnetResourceGroup)
+  params: {
+    name: hostingModel == 'code'? function.outputs.functionName : function_docker.outputs.functionName
+    location: location
+    resourceId: hostingModel == 'code'? function.outputs.functionId : function_docker.outputs.functionId
+    subnetId: peSubsnet.id
+    resourceEndpointType: 'sites'
+    privateDnsZoneName: 'privatelink.azurewebsites.net'
+    dnsZoneResourceGroup: dnsZoneResourceGroup
+  }
+}
+
 module formrecognizer 'core/ai/cognitiveservices.bicep' = {
   name: formRecognizerName
   scope: rg
@@ -1089,6 +1164,21 @@ module formrecognizer 'core/ai/cognitiveservices.bicep' = {
   }
 }
 
+module formRecognizerPrivateEndpoint 'core/private-endpoint/private-endpoint.bicep' = {
+  name: 'formRecognizer-private-endpoint'
+  scope: resourceGroup(vnetResourceGroup)
+  params: {
+    name: formrecognizer.outputs.name
+    location: location
+    resourceId: formrecognizer.outputs.id
+    subnetId: peSubsnet.id
+    resourceEndpointType: 'account'
+    privateDnsZoneName: 'privatelink.cognitiveservices.azure.com'
+    dnsZoneResourceGroup: dnsZoneResourceGroup
+  }
+}
+
+
 module contentsafety 'core/ai/cognitiveservices.bicep' = {
   name: contentSafetyName
   scope: rg
@@ -1097,6 +1187,20 @@ module contentsafety 'core/ai/cognitiveservices.bicep' = {
     location: location
     tags: tags
     kind: 'ContentSafety'
+  }
+}
+
+module contentSafetyPrivateEndpoint './core/private-endpoint/private-endpoint.bicep' = {
+  name: 'contentSafety-private-endpoint'
+  scope: resourceGroup(vnetResourceGroup)
+  params: {
+    location: location
+    name: contentSafetyName
+    resourceId: contentsafety.outputs.id
+    resourceEndpointType: 'account'
+    subnetId: peSubsnet.id
+    dnsZoneResourceGroup: dnsZoneResourceGroup
+    privateDnsZoneName: 'privatelink.cognitiveservices.azure.com'
   }
 }
 
@@ -1145,6 +1249,34 @@ module storage 'core/storage/storage-account.bicep' = {
         name: 'doc-processing-poison'
       }
     ]
+  }
+}
+
+module storageBlobPrivateEndpoint 'core/private-endpoint/private-endpoint.bicep' = {
+  name: 'storage-blob-private-endpoint'
+  scope: resourceGroup(vnetResourceGroup)
+  params: {
+    name: 'blob-${storage.outputs.name}'
+    location: location
+    resourceId: storage.outputs.id
+    subnetId: peSubsnet.id
+    resourceEndpointType: 'blob'
+    privateDnsZoneName: 'privatelink.blob.core.windows.net'
+    dnsZoneResourceGroup: dnsZoneResourceGroup
+  }
+}
+
+module storageQueuePrivateEndpoint 'core/private-endpoint/private-endpoint.bicep' = {
+  name: 'storage-queue-private-endpoint'
+  scope: resourceGroup(vnetResourceGroup)
+  params: {
+    name: 'queue-${storage.outputs.name}'
+    location: location
+    resourceId: storage.outputs.id
+    subnetId: peSubsnet.id
+    resourceEndpointType: 'queue'
+    privateDnsZoneName: 'privatelink.queue.core.windows.net'
+    dnsZoneResourceGroup: dnsZoneResourceGroup
   }
 }
 
@@ -1208,6 +1340,22 @@ module machineLearning 'app/machinelearning.bicep' = if (orchestrationStrategy =
     azureOpenAIEndpoint: openai.outputs.endpoint
   }
 }
+
+
+// module mlPrivateEndpoint 'core/private-endpoint/private-endpoint-ml.bicep' = if (orchestrationStrategy == 'prompt_flow') {
+//   name: 'ml-private-endpoint'
+//   scope: resourceGroup(vnetResourceGroup)
+//   params: {
+//     name: machineLearning.outputs.workspaceName
+//     location: location
+//     resourceId: machineLearning.outputs.workspaceId
+//     subnetId: peSubsnet.id
+//     resourceEndpointType: 'amlworkspace'
+//     privateDnsZoneName: 'privatelink.api.azureml.ms'
+//     nootebookPrivateDnsZoneName: 'privatelink.notebooks.azure.net'
+//     dnsZoneResourceGroup: dnsZoneResourceGroup
+//   }
+// }
 
 output APPLICATIONINSIGHTS_CONNECTION_STRING string = monitoring.outputs.applicationInsightsConnectionString
 output AZURE_APP_SERVICE_HOSTING_MODEL string = hostingModel
