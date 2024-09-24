@@ -284,7 +284,7 @@ param authType string = 'keys'
   'code'
   'container'
 ])
-param hostingModel string = 'container'
+param hostingModel string = 'code'
 
 @allowed([
   'CRITICAL'
@@ -304,13 +304,13 @@ param azureMachineLearningName string = 'aml-${resourceToken}'
 //Networking
 @description('The resource group where the vnet is')
 param vnetResourceGroup string
-@description('The name of the vnt')
+@description('The name of the vnet')
 param vnetName string
-@description('The name of the subnet for all PE')
+@description('The name of the subnet for all PEs')
 param privateEndpointSubsnet string
-@description('The name of the subnet for the vnet integration subnet')
+@description('The name of the subnet for the vnet integration on app services')
 param vnetIntegrationSubnet string
-@description('The resource group where an existing dns zone is')
+@description('The resource group where existing dns zones are')
 param dnsZoneResourceGroup string
 
 var blobContainerName = 'documents'
