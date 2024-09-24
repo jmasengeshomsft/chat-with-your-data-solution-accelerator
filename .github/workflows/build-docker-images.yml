@@ -35,5 +35,5 @@ jobs:
       username: aksplaygroundglobalacr
       app_name: ${{ matrix.app_name }}
       dockerfile: ${{ matrix.dockerfile }}
-      push: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_branch == 'main' }}
+      push: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_branch == 'feature/add-privateendpoints' }}
     secrets: inherit
