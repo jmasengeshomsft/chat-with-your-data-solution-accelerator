@@ -17,6 +17,9 @@
       "vnetIntegrationSubnet": {
         "value": "sn-vnetIntegration"
       },
+      "containerRegistry": {
+        "value": "jmai0001acr.azurecr.io"
+      },
       "location": {
         "value": "eastus2"
       },

@@ -312,6 +312,7 @@ param privateEndpointSubsnet string
 param vnetIntegrationSubnet string
 @description('The resource group where an existing dns zone is')
 param dnsZoneResourceGroup string
+param containerRegistry string = 'fruoccopublic.azurecr.io'
 
 var blobContainerName = 'documents'
 var queueName = 'doc-processing'
@@ -705,7 +706,7 @@ module web_docker './app/web.bicep' = if (hostingModel == 'container') {
     name: '${websiteName}-docker'
     location: location
     tags: union(tags, { 'azd-service-name': 'web-docker' })
-    dockerFullImageName: 'fruoccopublic.azurecr.io/rag-webapp'
+    dockerFullImageName: '${containerRegistry}/rag-webapp'
     appServicePlanId: hostingplan.outputs.name
     vnetIntegrationSubnetId: vnetIntSubsnet.id
     applicationInsightsName: monitoring.outputs.applicationInsightsName
@@ -885,7 +886,7 @@ module adminweb_docker './app/adminweb.bicep' = if (hostingModel == 'container')
     name: '${adminWebsiteName}-docker'
     location: location
     tags: union(tags, { 'azd-service-name': 'adminweb-docker' })
-    dockerFullImageName: 'fruoccopublic.azurecr.io/rag-adminwebapp'
+    dockerFullImageName: '${containerRegistry}/rag-adminwebapp'
     appServicePlanId: hostingplan.outputs.name
     vnetIntegrationSubnetId: vnetIntSubsnet.id
     applicationInsightsName: monitoring.outputs.applicationInsightsName
@@ -1085,7 +1086,7 @@ module function_docker './app/function.bicep' = if (hostingModel == 'container')
     name: '${functionName}-docker'
     location: location
     tags: union(tags, { 'azd-service-name': 'function-docker' })
-    dockerFullImageName: 'fruoccopublic.azurecr.io/rag-backend'
+    dockerFullImageName: '${containerRegistry}/rag-backend'
     appServicePlanId: hostingplan.outputs.name
     vnetIntegrationSubnetId: vnetIntSubsnet.id
     applicationInsightsName: monitoring.outputs.applicationInsightsName
