@@ -277,7 +277,7 @@ param principalId string = ''
   'rbac'
   'keys'
 ])
-param authType string = 'keys'
+param authType string = 'rbac'
 
 @description('Hosting model for the web apps. Containers are prebuilt and can be deployed faster, but code allows for more customization.')
 @allowed([
@@ -355,7 +355,7 @@ module keyvault './core/security/keyvault.bicep' = if (useKeyVault || authType =
 // using the module chat-with-your-data-solution-accelerator/infra/core/private-endpoint/private-endpoint.bicep, add a private link to this key vault
 module keyvaultPrivateEndpoint './core/private-endpoint/private-endpoint.bicep' = if (useKeyVault || authType == 'rbac') {
   name: 'keyvault-private-endpoint'
-  scope: resourceGroup(vnetResourceGroup)
+  scope: rg
   params: {
     location: location
     name: keyVaultName
@@ -363,6 +363,7 @@ module keyvaultPrivateEndpoint './core/private-endpoint/private-endpoint.bicep' 
     resourceEndpointType: 'vault'
     subnetId: peSubsnet.id
     dnsZoneResourceGroup: dnsZoneResourceGroup
+    dnsZoneSubscriptionId: '38bfc61d-d89a-4df6-b8fb-0c14568dcf29'
     privateDnsZoneName: 'privatelink.vaultcore.azure.net'
   }
 }
@@ -431,7 +432,7 @@ module openai 'core/ai/cognitiveservices.bicep' = {
 
 module openaiPrivateEndpoint './core/private-endpoint/private-endpoint.bicep' =  {
   name: 'openai-private-endpoint'
-  scope: resourceGroup(vnetResourceGroup)
+  scope: rg
   params: {
     location: location
     name: azureOpenAIResourceName
@@ -439,6 +440,7 @@ module openaiPrivateEndpoint './core/private-endpoint/private-endpoint.bicep' = 
     resourceEndpointType: 'account'
     subnetId: peSubsnet.id
     dnsZoneResourceGroup: dnsZoneResourceGroup
+    dnsZoneSubscriptionId: '38bfc61d-d89a-4df6-b8fb-0c14568dcf29'
     privateDnsZoneName: 'privatelink.openai.azure.com'
   }
 }
@@ -459,7 +461,7 @@ module computerVision 'core/ai/cognitiveservices.bicep' = if (useAdvancedImagePr
 
 // module computerVisionPrivateEndpoint './core/private-endpoint/private-endpoint.bicep' = if (useAdvancedImageProcessing) {
 //   name: 'computerVision-private-endpoint'
-//   scope: resourceGroup(vnetResourceGroup)
+//   scope: rg
 //   params: {
 //     location: location
 //     name: computerVisionName
@@ -467,7 +469,8 @@ module computerVision 'core/ai/cognitiveservices.bicep' = if (useAdvancedImagePr
 //     resourceEndpointType: 'account'
 //     subnetId: peSubsnet.id
 //     dnsZoneResourceGroup: dnsZoneResourceGroup
-//     privateDnsZoneName: 'privatelink.cognitiveservices.azure.com'
+//     dnsZoneSubscriptionId: '38bfc61d-d89a-4df6-b8fb-0c14568dcf29'
+    // privateDnsZoneName: 'privatelink.cognitiveservices.azure.com'
 //   }
 // }
 
@@ -531,7 +534,7 @@ module speechService 'core/ai/cognitiveservices.bicep' = {
 
 module speechServicePrivateEndpoint './core/private-endpoint/private-endpoint.bicep' = {
   name: 'speechService-private-endpoint'
-  scope: resourceGroup(vnetResourceGroup)
+  scope: rg
   params: {
     location: location
     name: speechServiceName
@@ -539,6 +542,7 @@ module speechServicePrivateEndpoint './core/private-endpoint/private-endpoint.bi
     resourceEndpointType: 'account'
     subnetId: peSubsnet.id
     dnsZoneResourceGroup: dnsZoneResourceGroup
+    dnsZoneSubscriptionId: '38bfc61d-d89a-4df6-b8fb-0c14568dcf29'
     privateDnsZoneName: 'privatelink.cognitiveservices.azure.com'
   }
 }
@@ -582,7 +586,7 @@ module search './core/search/search-services.bicep' = {
 
 module searchPrivateEndpoint './core/private-endpoint/private-endpoint.bicep' = {
   name: 'searchService-private-endpoint'
-  scope: resourceGroup(vnetResourceGroup)
+  scope: rg
   params: {
     location: location
     name: azureAISearchName
@@ -590,6 +594,7 @@ module searchPrivateEndpoint './core/private-endpoint/private-endpoint.bicep' = 
     resourceEndpointType: 'searchService'
     subnetId: peSubsnet.id
     dnsZoneResourceGroup: dnsZoneResourceGroup
+    dnsZoneSubscriptionId: '38bfc61d-d89a-4df6-b8fb-0c14568dcf29'
     privateDnsZoneName: 'privatelink.search.windows.net'
   }
 }
@@ -778,13 +783,14 @@ module web_docker './app/web.bicep' = if (hostingModel == 'container') {
 
 module webPrivateEndpoint 'core/private-endpoint/private-endpoint.bicep' = {
   name: 'web-private-endpoint'
-  scope: resourceGroup(vnetResourceGroup)
+  scope: rg
   params: {
     name: hostingModel == 'code'? web.outputs.FRONTEND_API_NAME : web_docker.outputs.FRONTEND_API_NAME
     location: location
     resourceId: hostingModel == 'code'? web.outputs.FRONTEND_API_ID : web_docker.outputs.FRONTEND_API_ID
     subnetId: peSubsnet.id
     resourceEndpointType: 'sites'
+    dnsZoneSubscriptionId: '38bfc61d-d89a-4df6-b8fb-0c14568dcf29'
     privateDnsZoneName: 'privatelink.azurewebsites.net'
     dnsZoneResourceGroup: dnsZoneResourceGroup
   }
@@ -955,13 +961,14 @@ module adminweb_docker './app/adminweb.bicep' = if (hostingModel == 'container')
 
 module webAdminPrivateEndpoint 'core/private-endpoint/private-endpoint.bicep' = {
   name: 'webAdmin-private-endpoint'
-  scope: resourceGroup(vnetResourceGroup)
+  scope: rg
   params: {
     name: hostingModel == 'code'? adminweb.outputs.WEBSITE_ADMIN_NAME : adminweb_docker.outputs.WEBSITE_ADMIN_NAME
     location: location
     resourceId: hostingModel == 'code'? adminweb.outputs.WEBSITE_ADMIN_ID : adminweb_docker.outputs.WEBSITE_ADMIN_ID
     subnetId: peSubsnet.id
     resourceEndpointType: 'sites'
+    dnsZoneSubscriptionId: '38bfc61d-d89a-4df6-b8fb-0c14568dcf29'
     privateDnsZoneName: 'privatelink.azurewebsites.net'
     dnsZoneResourceGroup: dnsZoneResourceGroup
   }
@@ -1141,13 +1148,14 @@ module function_docker './app/function.bicep' = if (hostingModel == 'container')
 
 module functionPrivateEndpoint 'core/private-endpoint/private-endpoint.bicep' = {
   name: 'function-private-endpoint'
-  scope: resourceGroup(vnetResourceGroup)
+  scope: rg
   params: {
     name: hostingModel == 'code'? function.outputs.functionName : function_docker.outputs.functionName
     location: location
     resourceId: hostingModel == 'code'? function.outputs.functionId : function_docker.outputs.functionId
     subnetId: peSubsnet.id
     resourceEndpointType: 'sites'
+    dnsZoneSubscriptionId: '38bfc61d-d89a-4df6-b8fb-0c14568dcf29'
     privateDnsZoneName: 'privatelink.azurewebsites.net'
     dnsZoneResourceGroup: dnsZoneResourceGroup
   }
@@ -1166,13 +1174,14 @@ module formrecognizer 'core/ai/cognitiveservices.bicep' = {
 
 module formRecognizerPrivateEndpoint 'core/private-endpoint/private-endpoint.bicep' = {
   name: 'formRecognizer-private-endpoint'
-  scope: resourceGroup(vnetResourceGroup)
+  scope: rg
   params: {
     name: formrecognizer.outputs.name
     location: location
     resourceId: formrecognizer.outputs.id
     subnetId: peSubsnet.id
     resourceEndpointType: 'account'
+    dnsZoneSubscriptionId: '38bfc61d-d89a-4df6-b8fb-0c14568dcf29'
     privateDnsZoneName: 'privatelink.cognitiveservices.azure.com'
     dnsZoneResourceGroup: dnsZoneResourceGroup
   }
@@ -1192,7 +1201,7 @@ module contentsafety 'core/ai/cognitiveservices.bicep' = {
 
 module contentSafetyPrivateEndpoint './core/private-endpoint/private-endpoint.bicep' = {
   name: 'contentSafety-private-endpoint'
-  scope: resourceGroup(vnetResourceGroup)
+  scope: rg
   params: {
     location: location
     name: contentSafetyName
@@ -1200,6 +1209,7 @@ module contentSafetyPrivateEndpoint './core/private-endpoint/private-endpoint.bi
     resourceEndpointType: 'account'
     subnetId: peSubsnet.id
     dnsZoneResourceGroup: dnsZoneResourceGroup
+    dnsZoneSubscriptionId: '38bfc61d-d89a-4df6-b8fb-0c14568dcf29'
     privateDnsZoneName: 'privatelink.cognitiveservices.azure.com'
   }
 }
@@ -1254,13 +1264,14 @@ module storage 'core/storage/storage-account.bicep' = {
 
 module storageBlobPrivateEndpoint 'core/private-endpoint/private-endpoint.bicep' = {
   name: 'storage-blob-private-endpoint'
-  scope: resourceGroup(vnetResourceGroup)
+  scope: rg
   params: {
     name: 'blob-${storage.outputs.name}'
     location: location
     resourceId: storage.outputs.id
     subnetId: peSubsnet.id
     resourceEndpointType: 'blob'
+    dnsZoneSubscriptionId: '38bfc61d-d89a-4df6-b8fb-0c14568dcf29'
     privateDnsZoneName: 'privatelink.blob.core.windows.net'
     dnsZoneResourceGroup: dnsZoneResourceGroup
   }
@@ -1268,62 +1279,63 @@ module storageBlobPrivateEndpoint 'core/private-endpoint/private-endpoint.bicep'
 
 module storageQueuePrivateEndpoint 'core/private-endpoint/private-endpoint.bicep' = {
   name: 'storage-queue-private-endpoint'
-  scope: resourceGroup(vnetResourceGroup)
+  scope: rg
   params: {
     name: 'queue-${storage.outputs.name}'
     location: location
     resourceId: storage.outputs.id
     subnetId: peSubsnet.id
     resourceEndpointType: 'queue'
+    dnsZoneSubscriptionId: '38bfc61d-d89a-4df6-b8fb-0c14568dcf29'
     privateDnsZoneName: 'privatelink.queue.core.windows.net'
     dnsZoneResourceGroup: dnsZoneResourceGroup
   }
 }
 
-// USER ROLES
-// Storage Blob Data Contributor
-module storageRoleUser 'core/security/role.bicep' = if (authType == 'rbac') {
-  scope: rg
-  name: 'storage-role-user'
-  params: {
-    principalId: principalId
-    roleDefinitionId: 'ba92f5b4-2d11-453d-a403-e96b0029c9fe'
-    principalType: 'User'
-  }
-}
+// // USER ROLES
+// // Storage Blob Data Contributor
+// module storageRoleUser 'core/security/role.bicep' = if (authType == 'rbac') {
+//   scope: rg
+//   name: 'storage-role-user'
+//   params: {
+//     principalId: principalId
+//     roleDefinitionId: 'ba92f5b4-2d11-453d-a403-e96b0029c9fe'
+//     principalType: 'User'
+//   }
+// }
 
-// Cognitive Services User
-module openaiRoleUser 'core/security/role.bicep' = if (authType == 'rbac') {
-  scope: rg
-  name: 'openai-role-user'
-  params: {
-    principalId: principalId
-    roleDefinitionId: 'a97b65f3-24c7-4388-baec-2e87135dc908'
-    principalType: 'User'
-  }
-}
+// // Cognitive Services User
+// module openaiRoleUser 'core/security/role.bicep' = if (authType == 'rbac') {
+//   scope: rg
+//   name: 'openai-role-user'
+//   params: {
+//     principalId: principalId
+//     roleDefinitionId: 'a97b65f3-24c7-4388-baec-2e87135dc908'
+//     principalType: 'User'
+//   }
+// }
 
-// Contributor
-module openaiRoleUserContributor 'core/security/role.bicep' = if (authType == 'rbac') {
-  scope: rg
-  name: 'openai-role-user-contributor'
-  params: {
-    principalId: principalId
-    roleDefinitionId: 'b24988ac-6180-42a0-ab88-20f7382dd24c'
-    principalType: 'User'
-  }
-}
+// // Contributor
+// module openaiRoleUserContributor 'core/security/role.bicep' = if (authType == 'rbac') {
+//   scope: rg
+//   name: 'openai-role-user-contributor'
+//   params: {
+//     principalId: principalId
+//     roleDefinitionId: 'b24988ac-6180-42a0-ab88-20f7382dd24c'
+//     principalType: 'User'
+//   }
+// }
 
-// Search Index Data Contributor
-module searchRoleUser 'core/security/role.bicep' = if (authType == 'rbac') {
-  scope: rg
-  name: 'search-role-user'
-  params: {
-    principalId: principalId
-    roleDefinitionId: '8ebe5a00-799e-43f5-93ac-243d3dce84a7'
-    principalType: 'User'
-  }
-}
+// // Search Index Data Contributor
+// module searchRoleUser 'core/security/role.bicep' = if (authType == 'rbac') {
+//   scope: rg
+//   name: 'search-role-user'
+//   params: {
+//     principalId: principalId
+//     roleDefinitionId: '8ebe5a00-799e-43f5-93ac-243d3dce84a7'
+//     principalType: 'User'
+//   }
+// }
 
 module machineLearning 'app/machinelearning.bicep' = if (orchestrationStrategy == 'prompt_flow') {
   scope: rg
@@ -1344,15 +1356,17 @@ module machineLearning 'app/machinelearning.bicep' = if (orchestrationStrategy =
 
 // module mlPrivateEndpoint 'core/private-endpoint/private-endpoint-ml.bicep' = if (orchestrationStrategy == 'prompt_flow') {
 //   name: 'ml-private-endpoint'
-//   scope: resourceGroup(vnetResourceGroup)
+//   scope: rg
 //   params: {
 //     name: machineLearning.outputs.workspaceName
 //     location: location
 //     resourceId: machineLearning.outputs.workspaceId
 //     subnetId: peSubsnet.id
 //     resourceEndpointType: 'amlworkspace'
-//     privateDnsZoneName: 'privatelink.api.azureml.ms'
-//     nootebookPrivateDnsZoneName: 'privatelink.notebooks.azure.net'
+//     dnsZoneSubscriptionId: '38bfc61d-d89a-4df6-b8fb-0c14568dcf29'
+   // privateDnsZoneName: 'privatelink.api.azureml.ms'
+//     nootebookdnsZoneSubscriptionId: '38bfc61d-d89a-4df6-b8fb-0c14568dcf29'
+   // privateDnsZoneName: 'privatelink.notebooks.azure.net'
 //     dnsZoneResourceGroup: dnsZoneResourceGroup
 //   }
 // }

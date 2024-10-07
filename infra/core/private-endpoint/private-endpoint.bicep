@@ -6,11 +6,12 @@ param location string
 param subnetId string
 param privateDnsZoneName string
 param dnsZoneResourceGroup string
+param dnsZoneSubscriptionId string
 
 
 resource privateDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' existing = {
   name: privateDnsZoneName
-  scope: resourceGroup(dnsZoneResourceGroup)
+  scope: resourceGroup(dnsZoneSubscriptionId, dnsZoneResourceGroup)
 }
 
 resource privateEndpoint 'Microsoft.Network/privateEndpoints@2021-05-01' = {
