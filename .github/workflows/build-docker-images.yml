@@ -4,7 +4,9 @@ on:
   workflow_run:
     workflows: [Tests]
     types: [completed]
-    branches: [main, temp-speech-service-undo]
+    branches: [main]
+  push:
+    branches: [temp-speech-service-undo]
   pull_request:
     branches: [main]
     types:
